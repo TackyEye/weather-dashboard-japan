@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tokyo Weather Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .location {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 30px;
+        }
+
+        .weather-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .temperature {
+            font-size: 4em;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .unit {
+            font-size: 0.4em;
+            vertical-align: super;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .detail-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .detail-label {
+            color: #999;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .detail-value {
+            color: #333;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+
+        .hourly-forecast {
+            margin-top: 30px;
+        }
+
+        .hourly-forecast h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .hourly-temps {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .hourly-item {
+            flex-shrink: 0;
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 70px;
+        }
+
+        .hourly-time {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .hourly-temp {
+            font-size: 1.3em;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .last-updated {
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+            margin-top: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .temperature {
+                font-size: 3em;
+            }
+
+            .weather-main {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tokyo Weather</h1>
+        <div class="location">Tokyo, Japan</div>
+
+        <div id="content">
+            <div class="loading">Loading weather data...</div>
+        </div>
+    </div>
+
+    <script>
+        const refreshInterval = 5 * 60 * 1000; // Refresh every 5 minutes
+
+        async function loadWeatherData() {
+            try {
+                const response = await fetch('/api/weather');
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayWeather(data);
+                } else {
+                    showError(data.error || 'Failed to load weather data');
+                }
+            } catch (error) {
+                showError('Error connecting to API: ' + error.message);
+            }
+        }
+
+        function displayWeather(data) {
+            const content = document.getElementById('content');
+            const lastUpdated = new Date(data.last_updated).toLocaleTimeString();
+
+            let hourlyHtml = '';
+            if (data.hourly_temps && data.hourly_temps.length > 0) {
+                hourlyHtml = '<div class="hourly-forecast"><h3>Next 24 Hours</h3><div class="hourly-temps">';
+                data.hourly_temps.forEach((temp, index) => {
+                    const hour = index;
+                    hourlyHtml += `
+                        <div class="hourly-item">
+                            <div class="hourly-time">${hour}:00</div>
+                            <div class="hourly-temp">${temp}°</div>
+                        </div>
+                    `;
+                });
+                hourlyHtml += '</div></div>';
+            }
+
+            content.innerHTML = `
+                <div class="weather-main">
+                    <div class="temperature">${Math.round(data.temperature)}<span class="unit">°C</span></div>
+                </div>
+
+                <div class="weather-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Coordinates</div>
+                        <div class="detail-value">${data.latitude}°N, ${data.longitude}°E</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Last Updated</div>
+                        <div class="detail-value">${lastUpdated}</div>
+                    </div>
+                </div>
+
+                ${hourlyHtml}
+
+                <div class="last-updated">
+                    Auto-refreshes every 5 minutes
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const content = document.getElementById('content');
+            content.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Load data on page load
+        loadWeatherData();
+
+        // Auto-refresh data
+        setInterval(loadWeatherData, refreshInterval);
+    </script>
+</body>
+</html>
